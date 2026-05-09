@@ -35,6 +35,24 @@ const uid = () => {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 };
 
+const sanitizeUser = (user) => {
+  if (!user) return null;
+  const { password_hash: _passwordHash, ...safeUser } = user;
+  return safeUser;
+};
+
+const normalizeEmail = (email) => email.trim().toLowerCase();
+
+const hashPassword = async (email, password) => {
+  const input = `sabi-v1:${normalizeEmail(email)}:${password}`;
+  const bytes = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+};
+
 const todayKey = () => new Date().toISOString().slice(0, 10);
 
 const readStore = () => {
@@ -69,7 +87,7 @@ export const getActiveUser = () => {
 };
 
 export const setActiveUser = (user) => {
-  window.localStorage.setItem(ACTIVE_USER_KEY, JSON.stringify(user));
+  window.localStorage.setItem(ACTIVE_USER_KEY, JSON.stringify(sanitizeUser(user)));
 };
 
 export const listenForStoreChanges = (callback) => {
@@ -144,33 +162,55 @@ const mapStats = ({ products, transactions, insights }) => {
 };
 
 const localApi = {
-  async login({ businessName, businessType }) {
+  async signUp({ businessName, businessType, email, password }) {
     const store = readStore();
     const normalizedName = businessName.trim();
-    let user = store.users.find(
-      (item) => item.business_name.toLowerCase() === normalizedName.toLowerCase(),
+    const normalizedEmail = normalizeEmail(email);
+    const existing = store.users.find(
+      (item) => item.email?.toLowerCase() === normalizedEmail,
+    );
+
+    if (existing) {
+      throw new Error("An account with this email already exists.");
+    }
+
+    const user = {
+      id: uid(),
+      email: normalizedEmail,
+      password_hash: await hashPassword(normalizedEmail, password),
+      business_name: normalizedName,
+      business_type: businessType || "Small business",
+      created_at: new Date().toISOString(),
+    };
+    store.users.push(user);
+    starterProducts.forEach((product) => {
+      store.products.push({
+        id: uid(),
+        user_id: user.id,
+        ...product,
+      });
+    });
+    writeStore(store);
+    setActiveUser(user);
+    return sanitizeUser(user);
+  },
+
+  async login({ email, password }) {
+    const store = readStore();
+    const normalizedEmail = normalizeEmail(email);
+    const passwordHash = await hashPassword(normalizedEmail, password);
+    const user = store.users.find(
+      (item) =>
+        item.email?.toLowerCase() === normalizedEmail &&
+        item.password_hash === passwordHash,
     );
 
     if (!user) {
-      user = {
-        id: uid(),
-        business_name: normalizedName,
-        business_type: businessType || "Small business",
-        created_at: new Date().toISOString(),
-      };
-      store.users.push(user);
-      starterProducts.forEach((product) => {
-        store.products.push({
-          id: uid(),
-          user_id: user.id,
-          ...product,
-        });
-      });
-      writeStore(store);
+      throw new Error("Invalid email or password.");
     }
 
     setActiveUser(user);
-    return user;
+    return sanitizeUser(user);
   },
 
   async getDashboard(userId) {
@@ -283,24 +323,28 @@ const localApi = {
 };
 
 const supabaseApi = {
-  async login({ businessName, businessType }) {
+  async signUp({ businessName, businessType, email, password }) {
     const normalizedName = businessName.trim();
+    const normalizedEmail = normalizeEmail(email);
+    const passwordHash = await hashPassword(normalizedEmail, password);
+
     const { data: existing, error: readError } = await supabase
       .from("users")
-      .select("*")
-      .ilike("business_name", normalizedName)
+      .select("id")
+      .ilike("email", normalizedEmail)
       .maybeSingle();
 
     if (readError) throw readError;
 
     if (existing) {
-      setActiveUser(existing);
-      return existing;
+      throw new Error("An account with this email already exists.");
     }
 
     const { data, error } = await supabase
       .from("users")
       .insert({
+        email: normalizedEmail,
+        password_hash: passwordHash,
         business_name: normalizedName,
         business_type: businessType || "Small business",
       })
@@ -319,7 +363,26 @@ const supabaseApi = {
     if (starterError) throw starterError;
 
     setActiveUser(data);
-    return data;
+    return sanitizeUser(data);
+  },
+
+  async login({ email, password }) {
+    const normalizedEmail = normalizeEmail(email);
+    const passwordHash = await hashPassword(normalizedEmail, password);
+    const { data, error } = await supabase
+      .from("users")
+      .select("*")
+      .ilike("email", normalizedEmail)
+      .eq("password_hash", passwordHash)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) {
+      throw new Error("Invalid email or password.");
+    }
+
+    setActiveUser(data);
+    return sanitizeUser(data);
   },
 
   async getDashboard(userId) {

@@ -7,8 +7,11 @@ import { businessApi, getActiveUser, hasSupabase } from "@/lib/businessStore";
 
 export default function LoginPage() {
   const router = useRouter();
+  const [mode, setMode] = useState("login");
   const [businessName, setBusinessName] = useState("");
   const [businessType, setBusinessType] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -22,17 +25,31 @@ export default function LoginPage() {
     event.preventDefault();
     setError("");
 
-    if (!businessName.trim()) {
-      setError("Enter a business name to continue.");
+    if (!email.trim() || !password) {
+      setError("Enter your email and password.");
+      return;
+    }
+
+    if (mode === "signup" && !businessName.trim()) {
+      setError("Enter your business name to create an account.");
+      return;
+    }
+
+    if (mode === "signup" && password.length < 6) {
+      setError("Use at least 6 characters for the password.");
       return;
     }
 
     try {
       setSubmitting(true);
-      await businessApi.login({ businessName, businessType });
+      if (mode === "signup") {
+        await businessApi.signUp({ businessName, businessType, email, password });
+      } else {
+        await businessApi.login({ email, password });
+      }
       router.push("/dashboard");
     } catch (err) {
-      setError(err.message || "Could not enter the business workspace.");
+      setError(err.message || "Could not access the business workspace.");
     } finally {
       setSubmitting(false);
     }
@@ -64,33 +81,92 @@ export default function LoginPage() {
           className="rounded-lg border border-[#d8d0c2] bg-white p-6 shadow-xl shadow-black/5"
         >
           <div className="mb-6">
-            <h2 className="text-2xl font-semibold">Enter your shop</h2>
+            <h2 className="text-2xl font-semibold">
+              {mode === "signup" ? "Create your account" : "Login to your shop"}
+            </h2>
             <p className="mt-2 text-sm text-[#65605a]">
-              Use a business name for the demo. {hasSupabase ? "Supabase is connected." : "Demo mode uses this browser."}
+              {hasSupabase ? "Accounts are stored in Supabase." : "Demo accounts use this browser."}
             </p>
           </div>
 
-          <label className="block text-sm font-medium text-[#34302c]" htmlFor="business-name">
-            Business name
+          <div className="mb-5 grid grid-cols-2 rounded-md border border-[#d8d0c2] bg-[#fffdf8] p-1">
+            <button
+              type="button"
+              onClick={() => {
+                setMode("login");
+                setError("");
+              }}
+              className={`h-10 rounded px-3 text-sm font-semibold transition ${
+                mode === "login" ? "bg-[#151515] text-white" : "text-[#65605a] hover:text-[#151515]"
+              }`}
+            >
+              Login
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode("signup");
+                setError("");
+              }}
+              className={`h-10 rounded px-3 text-sm font-semibold transition ${
+                mode === "signup" ? "bg-[#151515] text-white" : "text-[#65605a] hover:text-[#151515]"
+              }`}
+            >
+              Sign up
+            </button>
+          </div>
+
+          <label className="block text-sm font-medium text-[#34302c]" htmlFor="email">
+            Email
           </label>
           <input
-            id="business-name"
-            value={businessName}
-            onChange={(event) => setBusinessName(event.target.value)}
+            id="email"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
             className="mt-2 h-12 w-full rounded-md border border-[#cfc6b7] bg-[#fffdf8] px-4 outline-none transition focus:border-[#2f7d68] focus:ring-4 focus:ring-[#2f7d68]/15"
-            placeholder="ABC Shop"
+            placeholder="owner@example.com"
           />
 
-          <label className="mt-5 block text-sm font-medium text-[#34302c]" htmlFor="business-type">
-            Business type
+          <label className="mt-5 block text-sm font-medium text-[#34302c]" htmlFor="password">
+            Password
           </label>
           <input
-            id="business-type"
-            value={businessType}
-            onChange={(event) => setBusinessType(event.target.value)}
+            id="password"
+            type="password"
+            autoComplete={mode === "signup" ? "new-password" : "current-password"}
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
             className="mt-2 h-12 w-full rounded-md border border-[#cfc6b7] bg-[#fffdf8] px-4 outline-none transition focus:border-[#2f7d68] focus:ring-4 focus:ring-[#2f7d68]/15"
-            placeholder="Cafe, kiosk, bar, vendor"
+            placeholder="At least 6 characters"
           />
+
+          {mode === "signup" ? (
+            <>
+              <label className="mt-5 block text-sm font-medium text-[#34302c]" htmlFor="business-name">
+                Business name
+              </label>
+              <input
+                id="business-name"
+                value={businessName}
+                onChange={(event) => setBusinessName(event.target.value)}
+                className="mt-2 h-12 w-full rounded-md border border-[#cfc6b7] bg-[#fffdf8] px-4 outline-none transition focus:border-[#2f7d68] focus:ring-4 focus:ring-[#2f7d68]/15"
+                placeholder="ABC Shop"
+              />
+
+              <label className="mt-5 block text-sm font-medium text-[#34302c]" htmlFor="business-type">
+                Business type
+              </label>
+              <input
+                id="business-type"
+                value={businessType}
+                onChange={(event) => setBusinessType(event.target.value)}
+                className="mt-2 h-12 w-full rounded-md border border-[#cfc6b7] bg-[#fffdf8] px-4 outline-none transition focus:border-[#2f7d68] focus:ring-4 focus:ring-[#2f7d68]/15"
+                placeholder="Cafe, kiosk, bar, vendor"
+              />
+            </>
+          ) : null}
 
           {error ? <p className="mt-4 text-sm font-medium text-[#b42318]">{error}</p> : null}
 
@@ -100,7 +176,13 @@ export default function LoginPage() {
             className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-md bg-[#151515] px-5 font-semibold text-white transition hover:bg-[#2f7d68] disabled:cursor-not-allowed disabled:opacity-60"
           >
             <span aria-hidden="true">→</span>
-            {submitting ? "Entering..." : "Enter"}
+            {submitting
+              ? mode === "signup"
+                ? "Creating..."
+                : "Logging in..."
+              : mode === "signup"
+                ? "Create account"
+                : "Login"}
           </button>
 
           <Link
