@@ -1,26 +1,127 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f7f4ee;
+  --foreground: #151515;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: Arial, Helvetica, sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+button,
+a,
+input {
+  font: inherit;
+}
+
+.nav-button {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.375rem;
+  background: #151515;
+  padding: 0.65rem 1rem;
+  font-size: 0.925rem;
+  font-weight: 700;
+  color: white;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+
+.nav-button:hover {
+  background: #2f7d68;
+}
+
+.nav-button.secondary {
+  border: 1px solid #d8d0c2;
+  background: white;
+  color: #34302c;
+}
+
+.nav-button.secondary:hover {
+  border-color: #2f7d68;
+  background: white;
+  color: #2f7d68;
+}
+
+.form-input {
+  margin-top: 0.5rem;
+  height: 3rem;
+  width: 100%;
+  border-radius: 0.375rem;
+  border: 1px solid #cfc6b7;
+  background: #fffdf8;
+  padding: 0 1rem;
+  outline: none;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.form-input:focus {
+  border-color: #2f7d68;
+  box-shadow: 0 0 0 4px rgb(47 125 104 / 15%);
+}
+
+.stat-card {
+  min-height: 8.5rem;
+  border: 1px solid #d8d0c2;
+  border-radius: 0.5rem;
+  background: white;
+  padding: 1.25rem;
+  box-shadow: 0 18px 45px rgb(31 25 16 / 5%);
+}
+
+.stat-card.green {
+  border-color: rgb(47 125 104 / 35%);
+  background: #eef8f4;
+}
+
+.stat-card.coral {
+  border-color: rgb(173 77 59 / 35%);
+  background: #fff1ed;
+}
+
+.stat-card.gold {
+  border-color: rgb(176 124 26 / 35%);
+  background: #fff7e3;
+}
+
+.status {
+  display: inline-flex;
+  min-height: 1.75rem;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.status.ok {
+  background: #eef8f4;
+  color: #245f50;
+}
+
+.status.danger {
+  background: #fff1f0;
+  color: #b42318;
+}
+
+.status.warn {
+  background: #fff7e3;
+  color: #865b12;
 }
